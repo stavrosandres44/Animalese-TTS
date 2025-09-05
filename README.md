@@ -1,8 +1,12 @@
-# Animalese-TTS
+# Animalese TTS
 
 This is a fully client-side TTS (Text-to-Speech) engine that simulates the iconic "Animalese" voice from *Animal Crossing: New Horizons*. It works by combining individual audio samples—each representing a letter of the alphabet—to recreate phrases and sentences based on the text input by the user.
 
 All audio samples have been **ripped directly from the game**, preserving the authentic vocal texture and rhythm found in the original Animalese voices. This makes the experience as accurate and faithful to the game as possible.
+
+👉 **Live Demo:** [https://stavrosandres44.github.io/Animalese-TTS/](https://stavrosandres44.github.io/Animalese-TTS/)
+
+✅ **Free, game-accurate, and with unlimited usage** — there are **no character limits** and **no usage restrictions**.
 
 ## 🎤 How It Works
 
@@ -33,6 +37,7 @@ You can change the voice by selecting from the dropdown menu above the input box
 * ✅ **Command system** – special effects like `[angry]` can be inserted inline to trigger expressive sounds
 * ✅ **Responsive UI** that updates the play button, dropdown, and pitch controls in real time
 * ✅ **No servers, no tracking, 100% local**
+* ✅ **Free and unlimited**, with no character or usage restrictions
 
 ## 🔊 Special Commands
 
@@ -41,3 +46,4 @@ You can include certain keywords in the text to trigger sound effects. For examp
 * `[angry]` — pauses speech and plays a custom angry sound before continuing
 
 These commands can be typed anywhere in your input and will be detected and executed inline.
+
