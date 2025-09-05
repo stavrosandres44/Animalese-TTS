@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Animalese TTS</title>
+  <link rel="icon" href="assets/icons/isabelle.png">
+  <link href="https://fonts.googleapis.com/css?family=Inter:400,500,700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script defer src="animalese.js"></script>
+</head>
+<body>
+  <div class="animalese-subtitle">Free, Game-Accurate and without limits.</div>
+  <div class="container">
+    <textarea class="text-area" id="textbox" placeholder="Type your text here..."></textarea>
+    <div class="actions-row">
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <button class="btn btn-sweet" id="sweetBtn" tabindex="0">
+          <img src="assets/icons/sweet.png" alt="Sweet icon"> Sweet
+        </button>
+        <button class="adjustments-button material-icons" id="adjustmentsBtn">tune</button>
+      </div>
+      <div class="dropdown" id="sweetDropdown">
+        <button class="dropdown-option selected" data-voice="voice_1">
+          <span class="dropdown-main">
+            <img src="assets/icons/sweet.png" alt="Sweet"> Sweet
+          </span>
+          <span class="material-icons">check</span>
+        </button>
+        <button class="dropdown-option" data-voice="voice_2">
+          <span class="dropdown-main">
+            <img src="assets/icons/peppy.png" alt="Peppy"> Peppy
+          </span>
+          <span class="material-icons">check</span>
+        </button>
+        <button class="dropdown-option" data-voice="voice_3">
+          <span class="dropdown-main">
+            <img src="assets/icons/big_sister.png" alt="Big Sister"> Big Sister
+          </span>
+          <span class="material-icons">check</span>
+        </button>
+        <button class="dropdown-option" data-voice="voice_4">
+          <span class="dropdown-main">
+            <img src="assets/icons/snooty.png" alt="Snooty"> Snooty
+          </span>
+          <span class="material-icons">check</span>
+        </button>
+      </div>
+      <button class="btn btn-say" id="sayBtn" onclick="sayIt()" disabled>
+        <span class="material-icons btn-say-graphic" id="sayBtnIcon">graphic_eq</span>
+        <span class="material-icons btn-say-play" id="sayBtnPlayIcon">pause</span>
+        <span id="sayBtnText">Say!</span>
+      </button>
+    </div>
+    <div class="adjustments-box" id="adjustmentsBox" style="display: none;">
+      <label for="pitchSlider">Pitch</label>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="range" id="pitchSlider" min="0.5" max="2" step="0.01" value="1">
+        <input type="text" id="pitchValue" class="pitch-value" value="1" readonly style="width: 50px;">
+      </div>
+      <label for="variationSlider">Pitch Variation</label>
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <input type="range" id="variationSlider" min="0" max="1" step="0.01" value="0.15">
+        <input type="text" id="variationValue" class="pitch-value" value="0.15" readonly style="width: 50px;">
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Detect [angry] command in real-time input
+  document.getElementById('textbox').addEventListener('input', function () {
+    const text = this.value.toLowerCase();
+    const event = new CustomEvent('commandDetected', {
+      detail: {
+        command: '[angry]',
+        detected: text.includes('[angry]')
+      }
+    });
+    document.dispatchEvent(event);
+  });
+
+  document.getElementById('adjustmentsBtn').addEventListener('click', () => {
+    const box = document.getElementById('adjustmentsBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  });
+
+  // Notify JS when pitch or variation changes + update text values
+  const pitchSlider = document.getElementById('pitchSlider');
+  const pitchValue = document.getElementById('pitchValue');
+  pitchSlider.addEventListener('input', function () {
+    pitchValue.value = this.value;
+    const event = new CustomEvent('pitchChanged', {
+      detail: { pitch: parseFloat(this.value) }
+    });
+    document.dispatchEvent(event);
+  });
+
+  const variationSlider = document.getElementById('variationSlider');
+  const variationValue = document.getElementById('variationValue');
+  variationSlider.addEventListener('input', function () {
+    variationValue.value = this.value;
+    const event = new CustomEvent('variationChanged', {
+      detail: { variation: parseFloat(this.value) }
+    });
+    document.dispatchEvent(event);
+  });
+  </script>
+</body>
+</html>
