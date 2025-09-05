@@ -70,7 +70,7 @@ function playCommandSound(callback) {
 }
 
 let pitch = 1.0;
-let variation = 0.15;
+let variation = 0.0;
 
 document.addEventListener('pitchChanged', (e) => {
   if (!isNaN(e.detail.pitch) && isFinite(e.detail.pitch)) {
@@ -102,7 +102,12 @@ async function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
-    let delay = DELAY_MS;
+
+    if (l === ' ') {
+      current++;
+      setTimeout(playNext, WORD_DELAY_MS);
+      return;
+    }
 
     if (l >= 'a' && l <= 'z') {
       try {
@@ -113,22 +118,22 @@ async function playAnimalese(text, onComplete) {
         const source = audioContext.createBufferSource();
         source.buffer = buffer;
 
-        const playbackRate = 1 + (Math.random() * 2 - 1) * variation;
-        const detuneCents = (Math.log2(pitch) * 1200) + (Math.random() * variation * 100);
-        source.playbackRate.value = playbackRate;
+        const detuneCents = Math.log2(pitch) * 1200;
         source.detune.value = detuneCents;
 
         source.connect(audioContext.destination);
         source.start();
+
+        current++;
+        setTimeout(playNext, DELAY_MS);
+        return;
       } catch (e) {
         console.error('Error playing letter:', l, e);
       }
-    } else if (l === ' ') {
-      delay = WORD_DELAY_MS;
     }
 
     current++;
-    setTimeout(playNext, delay);
+    setTimeout(playNext, DELAY_MS);
   }
 
   playNext();
