@@ -1,5 +1,4 @@
 # Animalese-TTS
-# Animalese Genuine TTS
 
 This is a fully client-side TTS (Text-to-Speech) engine that simulates the iconic "Animalese" voice from *Animal Crossing: New Horizons*. It works by combining individual audio samples—each representing a letter of the alphabet—to recreate phrases and sentences based on the text input by the user.
 
