@@ -1,7 +1,7 @@
 let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
-const DELAY_MS = 125;
-const WORD_DELAY_MS = 55;
+const WORD_DELAY_MS = 55;              // Pausa entre palabras (espacios)
+const LETTER_DELAY_MS = 120;             // ✅ Nueva pausa fija entre letras (ms)
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
 
 const textbox = document.getElementById('textbox');
@@ -70,7 +70,7 @@ function playCommandSound(callback) {
 }
 
 let pitch = 1.0;
-let variation = 0.0;
+let variation = 0.0; // (reservado)
 
 document.addEventListener('pitchChanged', (e) => {
   if (!isNaN(e.detail.pitch) && isFinite(e.detail.pitch)) {
@@ -95,6 +95,7 @@ async function playAnimalese(text, onComplete) {
       return;
     }
 
+    // Comando especial [angry]
     if (text.slice(current).startsWith('[angry]')) {
       current += 7;
       playCommandSound(playNext);
@@ -103,12 +104,14 @@ async function playAnimalese(text, onComplete) {
 
     const l = letters[current];
 
+    // Espacio = pausa entre palabras
     if (l === ' ') {
       current++;
       setTimeout(playNext, WORD_DELAY_MS);
       return;
     }
 
+    // Letras a-z
     if (l >= 'a' && l <= 'z') {
       try {
         const response = await fetch(AUDIO_PATH + l + AUDIO_EXT);
@@ -118,6 +121,7 @@ async function playAnimalese(text, onComplete) {
         const source = audioContext.createBufferSource();
         source.buffer = buffer;
 
+        // Ajuste de pitch en cents
         const detuneCents = Math.log2(pitch) * 1200;
         source.detune.value = detuneCents;
 
@@ -125,15 +129,17 @@ async function playAnimalese(text, onComplete) {
         source.start();
 
         current++;
-        setTimeout(playNext, DELAY_MS);
+        // ✅ Añadimos LETTER_DELAY_MS tras la duración natural del clip
+        setTimeout(playNext, buffer.duration * 1000 + LETTER_DELAY_MS);
         return;
       } catch (e) {
         console.error('Error playing letter:', l, e);
       }
     }
 
+    // Puntuación u otros caracteres: usa la pausa entre letras
     current++;
-    setTimeout(playNext, DELAY_MS);
+    setTimeout(playNext, LETTER_DELAY_MS);
   }
 
   playNext();
