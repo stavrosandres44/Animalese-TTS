@@ -1,7 +1,11 @@
 let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
-const WORD_DELAY_MS = 55;              // Pausa entre palabras (espacios)
-const LETTER_DELAY_MS = 120;             // ✅ Nueva pausa fija entre letras (ms)
+
+// ===== Pausas base (pueden ser sobreescritas por voz) =====
+let WORD_DELAY_MS = 55;               // Pausa entre palabras
+let LETTER_DELAY_MS = 0;              // Pausa entre letras (0 = máximo flujo)
+let OVERLAP_MS = 0;                   // ✅ Solape entre letras para evitar "deletreo"
+
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
 
 const textbox = document.getElementById('textbox');
@@ -31,23 +35,81 @@ document.addEventListener('click', function (e) {
   }
 });
 
-dropdownOptions.forEach(option => {
-  option.addEventListener('click', function () {
-    dropdownOptions.forEach(opt => opt.classList.remove('selected'));
-    this.classList.add('selected');
+// ===== Audio cache & contexto único =====
+let audioContext = null;
+const bufferCache = new Map(); // key = ruta completa del audio
 
-    const img = this.querySelector('img');
-    const text = this.innerText.replace('check', '').trim();
-    sweetBtn.innerHTML = `<img src="${img.src}" alt="${img.alt}"> ${text}`;
+function ensureAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (audioContext.state === 'suspended') audioContext.resume();
+  return audioContext;
+}
 
-    const selectedVoice = this.dataset.voice;
-    AUDIO_PATH = `animalese/female/${selectedVoice}/`;
-    console.log('Voice changed to:', AUDIO_PATH);
+async function fetchDecodeToBuffer(path) {
+  if (bufferCache.has(path)) return bufferCache.get(path);
+  const ac = ensureAudioContext();
+  const res = await fetch(path);
+  const arr = await res.arrayBuffer();
+  const buf = await ac.decodeAudioData(arr);
+  bufferCache.set(path, buf);
+  return buf;
+}
 
-    sweetDropdown.classList.remove('open');
-    dropdownOpen = false;
+async function getLetterBuffer(letter) {
+  const path = `${AUDIO_PATH}${letter}${AUDIO_EXT}`;
+  return fetchDecodeToBuffer(path);
+}
+
+async function getCommandBuffer() {
+  return fetchDecodeToBuffer(COMMAND_SOUND);
+}
+
+// ===== Ajustes por voz (para evitar deletreo en voces con colas más largas) =====
+const VOICE_SETTINGS = {
+  default: { letterDelayMs: 0, overlapMs: 30, wordDelayMs: 55 },
+  big_sister: { letterDelayMs: 0, overlapMs: 60, wordDelayMs: 40 },
+  snooty: { letterDelayMs: 0, overlapMs: 60, wordDelayMs: 40 },
+};
+
+function normalizeVoiceKey(v) {
+  const s = String(v || '').toLowerCase().replace(/-/g, '_');
+  // Evitar regex con barras invertidas en este editor: colapsamos espacios "a mano"
+  const parts = s.trim().split(' ').filter(Boolean);
+  return parts.join('_');
+}
+
+function applyVoiceSettings(voiceKey) {
+  const key = normalizeVoiceKey(voiceKey);
+  const s = VOICE_SETTINGS[key] || VOICE_SETTINGS.default;
+  LETTER_DELAY_MS = s.letterDelayMs;
+  OVERLAP_MS = s.overlapMs;
+  WORD_DELAY_MS = s.wordDelayMs;
+}
+
+// Al cambiar la voz, aplicamos settings y limpiamos la caché
+if (sweetDropdown && dropdownOptions.length) {
+  dropdownOptions.forEach(option => {
+    option.addEventListener('click', function () {
+      dropdownOptions.forEach(opt => opt.classList.remove('selected'));
+      this.classList.add('selected');
+
+      const img = this.querySelector('img');
+      const text = this.innerText.replace('check', '').trim();
+      sweetBtn.innerHTML = `<img src="${img.src}" alt="${img.alt}"> ${text}`;
+
+      const selectedVoice = this.dataset.voice;
+      AUDIO_PATH = `animalese/female/${selectedVoice}/`;
+      bufferCache.clear();
+      applyVoiceSettings(selectedVoice); // ✅ aplica solapes específicos
+      console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS, OVERLAP_MS, WORD_DELAY_MS });
+
+      sweetDropdown.classList.remove('open');
+      dropdownOpen = false;
+    });
   });
-});
+}
 
 function setSayPlaying(isPlaying) {
   if (isPlaying) {
@@ -61,12 +123,6 @@ function setSayPlaying(isPlaying) {
     sayBtnIcon.style.display = '';
     sayBtnPlayIcon.style.display = 'none';
   }
-}
-
-function playCommandSound(callback) {
-  const cmdAudio = new Audio(COMMAND_SOUND);
-  cmdAudio.play();
-  cmdAudio.onended = () => callback();
 }
 
 let pitch = 1.0;
@@ -84,65 +140,87 @@ document.addEventListener('variationChanged', (e) => {
   }
 });
 
+// ===== Reproductor con timeline + solape y envolvente (anti-clicks) =====
 async function playAnimalese(text, onComplete) {
-  const letters = text.toLowerCase().split('');
-  let current = 0;
-  const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  const ac = ensureAudioContext();
+  const letters = text.toLowerCase();
 
-  async function playNext() {
-    if (current >= letters.length) {
-      if (typeof onComplete === 'function') onComplete();
-      return;
-    }
-
-    // Comando especial [angry]
-    if (text.slice(current).startsWith('[angry]')) {
-      current += 7;
-      playCommandSound(playNext);
-      return;
-    }
-
-    const l = letters[current];
-
-    // Espacio = pausa entre palabras
-    if (l === ' ') {
-      current++;
-      setTimeout(playNext, WORD_DELAY_MS);
-      return;
-    }
-
-    // Letras a-z
-    if (l >= 'a' && l <= 'z') {
-      try {
-        const response = await fetch(AUDIO_PATH + l + AUDIO_EXT);
-        const arrayBuffer = await response.arrayBuffer();
-        const buffer = await audioContext.decodeAudioData(arrayBuffer);
-
-        const source = audioContext.createBufferSource();
-        source.buffer = buffer;
-
-        // Ajuste de pitch en cents
-        const detuneCents = Math.log2(pitch) * 1200;
-        source.detune.value = detuneCents;
-
-        source.connect(audioContext.destination);
-        source.start();
-
-        current++;
-        // ✅ Añadimos LETTER_DELAY_MS tras la duración natural del clip
-        setTimeout(playNext, buffer.duration * 1000 + LETTER_DELAY_MS);
-        return;
-      } catch (e) {
-        console.error('Error playing letter:', l, e);
-      }
-    }
-
-    // Puntuación u otros caracteres: usa la pausa entre letras
-    current++;
-    setTimeout(playNext, LETTER_DELAY_MS);
+  // Asegura settings por defecto la primera vez
+  if (LETTER_DELAY_MS === undefined || OVERLAP_MS === undefined || WORD_DELAY_MS === undefined) {
+    applyVoiceSettings('default');
   }
 
-  playNext();
+  // Pre-carga de buffers necesarios
+  const neededKeys = new Set();
+  for (let i = 0; i < letters.length; i++) {
+    if (letters.startsWith('[angry]', i)) { neededKeys.add('[angry]'); i += 6; continue; }
+    const l = letters[i];
+    if (l >= 'a' && l <= 'z') neededKeys.add(l);
+  }
+  await Promise.all(Array.from(neededKeys).map(k => k === '[angry]' ? getCommandBuffer() : getLetterBuffer(k)));
+
+  let t = ac.currentTime + 0.05; // pequeño offset de seguridad
+  let lastSource = null;
+
+  const overlapS = Math.max(0, OVERLAP_MS) / 1000;
+  const letterGapS = Math.max(0, LETTER_DELAY_MS) / 1000;
+  const wordGapS = Math.max(0, WORD_DELAY_MS) / 1000;
+
+  for (let i = 0; i < letters.length; i++) {
+    if (letters.startsWith('[angry]', i)) {
+      const buf = await getCommandBuffer();
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      src.connect(ac.destination);
+      src.start(t);
+      t += buf.duration; // sfx no se solapa
+      lastSource = src;
+      i += 6;
+      continue;
+    }
+
+    const l = letters[i];
+
+    if (l === ' ') { t += wordGapS; continue; }
+
+    if (l >= 'a' && l <= 'z') {
+      const buf = await getLetterBuffer(l);
+
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const gain = ac.createGain();
+
+      // Pitch en cents
+      const detuneCents = Math.log2(pitch) * 1200;
+      try { src.detune.value = detuneCents; } catch(_) {}
+
+      // Envolvente corta para evitar clicks y permitir solape limpio
+      const ATTACK = 0.005, RELEASE = 0.02; // 5ms de ataque, 20ms de caída
+      gain.gain.setValueAtTime(0, t);
+      gain.gain.linearRampToValueAtTime(1, t + ATTACK);
+      const endTime = t + buf.duration;
+      gain.gain.setValueAtTime(1, endTime - RELEASE);
+      gain.gain.linearRampToValueAtTime(0, endTime);
+
+      src.connect(gain);
+      gain.connect(ac.destination);
+      src.start(t);
+
+      // Programar el inicio de la siguiente letra con solape
+      t += Math.max(0, buf.duration - overlapS) + letterGapS;
+      lastSource = src;
+      continue;
+    }
+
+    // Otros caracteres: usa gap de letra
+    t += letterGapS;
+  }
+
+  if (lastSource) {
+    lastSource.addEventListener('ended', () => { if (typeof onComplete === 'function') onComplete(); });
+  } else {
+    if (typeof onComplete === 'function') onComplete();
+  }
 }
 
 function sayIt() {
@@ -151,6 +229,5 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
-
 
 
