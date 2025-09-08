@@ -35,9 +35,8 @@ document.addEventListener('click', function (e) {
   }
 });
 
-// ===== Audio cache & contexto único =====
 let audioContext = null;
-const bufferCache = new Map(); // key = ruta completa del audio
+const bufferCache = new Map();
 
 function ensureAudioContext() {
   if (!audioContext) {
@@ -66,7 +65,6 @@ async function getCommandBuffer() {
   return fetchDecodeToBuffer(COMMAND_SOUND);
 }
 
-// ===== Ajustes por voz (para evitar deletreo en voces con colas más largas) =====
 const VOICE_SETTINGS = {
   default: { letterDelayMs: 0, overlapMs: 30, wordDelayMs: 55 },
   big_sister: { letterDelayMs: 0, overlapMs: 60, wordDelayMs: 40 },
@@ -75,7 +73,6 @@ const VOICE_SETTINGS = {
 
 function normalizeVoiceKey(v) {
   const s = String(v || '').toLowerCase().replace(/-/g, '_');
-  // Evitar regex con barras invertidas en este editor: colapsamos espacios "a mano"
   const parts = s.trim().split(' ').filter(Boolean);
   return parts.join('_');
 }
@@ -88,7 +85,6 @@ function applyVoiceSettings(voiceKey) {
   WORD_DELAY_MS = s.wordDelayMs;
 }
 
-// Al cambiar la voz, aplicamos settings y limpiamos la caché
 if (sweetDropdown && dropdownOptions.length) {
   dropdownOptions.forEach(option => {
     option.addEventListener('click', function () {
@@ -102,7 +98,7 @@ if (sweetDropdown && dropdownOptions.length) {
       const selectedVoice = this.dataset.voice;
       AUDIO_PATH = `animalese/female/${selectedVoice}/`;
       bufferCache.clear();
-      applyVoiceSettings(selectedVoice); // ✅ aplica solapes específicos
+      applyVoiceSettings(selectedVoice);
       console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS, OVERLAP_MS, WORD_DELAY_MS });
 
       sweetDropdown.classList.remove('open');
@@ -126,7 +122,7 @@ function setSayPlaying(isPlaying) {
 }
 
 let pitch = 1.0;
-let variation = 0.0; // (reservado)
+let variation = 0.0;
 
 document.addEventListener('pitchChanged', (e) => {
   if (!isNaN(e.detail.pitch) && isFinite(e.detail.pitch)) {
@@ -140,17 +136,14 @@ document.addEventListener('variationChanged', (e) => {
   }
 });
 
-// ===== Reproductor con timeline + solape y envolvente (anti-clicks) =====
 async function playAnimalese(text, onComplete) {
   const ac = ensureAudioContext();
   const letters = text.toLowerCase();
 
-  // Asegura settings por defecto la primera vez
   if (LETTER_DELAY_MS === undefined || OVERLAP_MS === undefined || WORD_DELAY_MS === undefined) {
     applyVoiceSettings('default');
   }
 
-  // Pre-carga de buffers necesarios
   const neededKeys = new Set();
   for (let i = 0; i < letters.length; i++) {
     if (letters.startsWith('[angry]', i)) { neededKeys.add('[angry]'); i += 6; continue; }
@@ -159,21 +152,56 @@ async function playAnimalese(text, onComplete) {
   }
   await Promise.all(Array.from(neededKeys).map(k => k === '[angry]' ? getCommandBuffer() : getLetterBuffer(k)));
 
-  let t = ac.currentTime + 0.05; // pequeño offset de seguridad
+  let t = ac.currentTime + 0.05;
   let lastSource = null;
 
   const overlapS = Math.max(0, OVERLAP_MS) / 1000;
   const letterGapS = Math.max(0, LETTER_DELAY_MS) / 1000;
   const wordGapS = Math.max(0, WORD_DELAY_MS) / 1000;
 
+  let wordBuffer = [];
+
+  async function playWord(bufferList, startTime) {
+    let currentTime = startTime;
+    for (const l of bufferList) {
+      const buf = await getLetterBuffer(l);
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const gain = ac.createGain();
+
+      const detuneCents = Math.log2(pitch) * 1200;
+      try { src.detune.value = detuneCents; } catch (_) {}
+
+      const ATTACK = 0.005, RELEASE = 0.02;
+      gain.gain.setValueAtTime(0, currentTime);
+      gain.gain.linearRampToValueAtTime(1, currentTime + ATTACK);
+      const endTime = currentTime + buf.duration;
+      gain.gain.setValueAtTime(1, endTime - RELEASE);
+      gain.gain.linearRampToValueAtTime(0, endTime);
+
+      src.connect(gain);
+      gain.connect(ac.destination);
+      src.start(currentTime);
+
+      currentTime += Math.max(0, buf.duration - overlapS) + letterGapS;
+      lastSource = src;
+    }
+    return currentTime;
+  }
+
   for (let i = 0; i < letters.length; i++) {
     if (letters.startsWith('[angry]', i)) {
+      if (wordBuffer.length > 0) {
+        t = await playWord(wordBuffer, t);
+        wordBuffer = [];
+        t += wordGapS;
+      }
       const buf = await getCommandBuffer();
       const src = ac.createBufferSource();
       src.buffer = buf;
       src.connect(ac.destination);
       src.start(t);
-      t += buf.duration; // sfx no se solapa
+      t += buf.duration;
       lastSource = src;
       i += 6;
       continue;
@@ -181,39 +209,29 @@ async function playAnimalese(text, onComplete) {
 
     const l = letters[i];
 
-    if (l === ' ') { t += wordGapS; continue; }
-
-    if (l >= 'a' && l <= 'z') {
-      const buf = await getLetterBuffer(l);
-
-      const src = ac.createBufferSource();
-      src.buffer = buf;
-      const gain = ac.createGain();
-
-      // Pitch en cents
-      const detuneCents = Math.log2(pitch) * 1200;
-      try { src.detune.value = detuneCents; } catch(_) {}
-
-      // Envolvente corta para evitar clicks y permitir solape limpio
-      const ATTACK = 0.005, RELEASE = 0.02; // 5ms de ataque, 20ms de caída
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(1, t + ATTACK);
-      const endTime = t + buf.duration;
-      gain.gain.setValueAtTime(1, endTime - RELEASE);
-      gain.gain.linearRampToValueAtTime(0, endTime);
-
-      src.connect(gain);
-      gain.connect(ac.destination);
-      src.start(t);
-
-      // Programar el inicio de la siguiente letra con solape
-      t += Math.max(0, buf.duration - overlapS) + letterGapS;
-      lastSource = src;
+    if (l === ' ') {
+      if (wordBuffer.length > 0) {
+        t = await playWord(wordBuffer, t);
+        wordBuffer = [];
+      }
+      t += wordGapS;
       continue;
     }
 
-    // Otros caracteres: usa gap de letra
-    t += letterGapS;
+    if (l >= 'a' && l <= 'z') {
+      wordBuffer.push(l);
+    } else {
+      if (wordBuffer.length > 0) {
+        t = await playWord(wordBuffer, t);
+        wordBuffer = [];
+        t += wordGapS;
+      }
+      t += letterGapS;
+    }
+  }
+
+  if (wordBuffer.length > 0) {
+    await playWord(wordBuffer, t);
   }
 
   if (lastSource) {
