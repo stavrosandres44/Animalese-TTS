@@ -14,7 +14,6 @@ const dropdownOptions = document.querySelectorAll('.dropdown-option');
 
 let currentPitch = 1;
 let currentVariation = 0;
-let currentAudioContext = null;
 let currentVoiceId = 'voice_1';
 
 document.addEventListener('pitchChanged', (e) => {
@@ -77,23 +76,38 @@ function setSayPlaying(isPlaying) {
 }
 
 function playWithPitch(src, pitch) {
-  const context = new (window.AudioContext || window.webkitAudioContext)();
-  currentAudioContext = context;
+  return new Promise((resolve) => {
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const request = new XMLHttpRequest();
+    request.open('GET', src, true);
+    request.responseType = 'arraybuffer';
+    request.onload = function () {
+      context.decodeAudioData(request.response, function (buffer) {
+        const source = context.createBufferSource();
+        source.buffer = buffer;
+        source.playbackRate.value = 1; // mantener velocidad
 
-  fetch(src)
-    .then(response => response.arrayBuffer())
-    .then(arrayBuffer => context.decodeAudioData(arrayBuffer))
-    .then(buffer => {
-      const source = context.createBufferSource();
-      source.buffer = buffer;
-      const playbackRate = Math.pow(2, (pitch - 1));
-      source.playbackRate.value = playbackRate;
-      source.connect(context.destination);
-      source.start();
-    })
-    .catch(error => {
-      console.error('Error playing audio with pitch:', error);
-    });
+        const gainNode = context.createGain();
+        source.connect(gainNode);
+        gainNode.connect(context.destination);
+
+        source.detune.value = (pitch - 1) * 1200; // detune en cents (1.0 = 0, 2.0 = +1200)
+
+        source.start(0);
+        setTimeout(() => {
+          context.close();
+          resolve();
+        }, DELAY_MS);
+      }, function (e) {
+        console.error('Error decoding audio', e);
+        resolve();
+      });
+    };
+    request.onerror = function () {
+      resolve();
+    };
+    request.send();
+  });
 }
 
 function playAnimalese(text, onComplete) {
@@ -101,7 +115,7 @@ function playAnimalese(text, onComplete) {
   let current = 0;
   const voiceIdAtStart = currentVoiceId;
 
-  function playNext() {
+  async function playNext() {
     if (currentVoiceId !== voiceIdAtStart) {
       console.warn('Voice changed mid-playback; cancelling');
       if (typeof onComplete === 'function') onComplete();
@@ -114,19 +128,19 @@ function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
-    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
       const variation = (Math.random() - 0.5) * currentVariation;
       const pitch = currentPitch + variation;
       const src = AUDIO_PATH + l + AUDIO_EXT;
-      playWithPitch(src, pitch);
-    } else if (l === ' ') {
-      delay = WORD_DELAY_MS;
+      await playWithPitch(src, pitch);
+    } else {
+      const delay = l === ' ' ? WORD_DELAY_MS : DELAY_MS;
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
 
     current++;
-    setTimeout(playNext, delay);
+    playNext();
   }
 
   playNext();
