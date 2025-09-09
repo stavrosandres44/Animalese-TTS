@@ -17,7 +17,6 @@ let currentVariation = 0;
 let currentAudioContext = null;
 let currentVoiceId = 'voice_1';
 
-// Reset AudioContext and voice ID tracking when pitch changes
 document.addEventListener('pitchChanged', (e) => {
   currentPitch = e.detail.pitch;
 });
@@ -77,7 +76,7 @@ function setSayPlaying(isPlaying) {
   }
 }
 
-function playWithPitch(src, pitch, callback) {
+function playWithPitch(src, pitch) {
   const context = new (window.AudioContext || window.webkitAudioContext)();
   currentAudioContext = context;
 
@@ -91,17 +90,9 @@ function playWithPitch(src, pitch, callback) {
       source.playbackRate.value = playbackRate;
       source.connect(context.destination);
       source.start();
-      source.onended = () => {
-        context.close();
-        callback();
-      };
     })
     .catch(error => {
       console.error('Error playing audio with pitch:', error);
-      try {
-        context.close();
-      } catch (e) {}
-      callback();
     });
 }
 
@@ -123,22 +114,19 @@ function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
+    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
       const variation = (Math.random() - 0.5) * currentVariation;
       const pitch = currentPitch + variation;
       const src = AUDIO_PATH + l + AUDIO_EXT;
-      playWithPitch(src, pitch, () => {
-        current++;
-        playNext();
-      });
-    } else {
-      const delay = l === ' ' ? WORD_DELAY_MS : DELAY_MS;
-      setTimeout(() => {
-        current++;
-        playNext();
-      }, delay);
+      playWithPitch(src, pitch);
+    } else if (l === ' ') {
+      delay = WORD_DELAY_MS;
     }
+
+    current++;
+    setTimeout(playNext, delay);
   }
 
   playNext();
