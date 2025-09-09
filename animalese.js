@@ -1,6 +1,6 @@
 let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
-const DELAY_MS = 120;
+const DELAY_MS = 125;
 const WORD_DELAY_MS = 55;
 
 const textbox = document.getElementById('textbox');
@@ -95,4 +95,5 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
+
 
