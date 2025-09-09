@@ -12,18 +12,6 @@ const sweetBtn = document.getElementById('sweetBtn');
 const sweetDropdown = document.getElementById('sweetDropdown');
 const dropdownOptions = document.querySelectorAll('.dropdown-option');
 
-let currentPitch = 1;
-let currentVariation = 0;
-let currentVoiceId = 'voice_1';
-
-document.addEventListener('pitchChanged', (e) => {
-  currentPitch = e.detail.pitch;
-});
-
-document.addEventListener('variationChanged', (e) => {
-  currentVariation = e.detail.variation;
-});
-
 textbox.addEventListener('input', () => {
   sayBtn.disabled = textbox.value.trim().length === 0;
 });
@@ -53,7 +41,6 @@ dropdownOptions.forEach(option => {
 
     const selectedVoice = this.dataset.voice;
     AUDIO_PATH = `animalese/female/${selectedVoice}/`;
-    currentVoiceId = selectedVoice;
     console.log('Voice changed to:', AUDIO_PATH);
 
     sweetDropdown.classList.remove('open');
@@ -75,72 +62,28 @@ function setSayPlaying(isPlaying) {
   }
 }
 
-function playWithPitch(src, pitch) {
-  return new Promise((resolve) => {
-    const context = new (window.AudioContext || window.webkitAudioContext)();
-    const request = new XMLHttpRequest();
-    request.open('GET', src, true);
-    request.responseType = 'arraybuffer';
-    request.onload = function () {
-      context.decodeAudioData(request.response, function (buffer) {
-        const source = context.createBufferSource();
-        source.buffer = buffer;
-        source.playbackRate.value = 1; // mantener velocidad
-
-        const gainNode = context.createGain();
-        source.connect(gainNode);
-        gainNode.connect(context.destination);
-
-        source.detune.value = (pitch - 1) * 1200; // detune en cents (1.0 = 0, 2.0 = +1200)
-
-        source.start(0);
-        setTimeout(() => {
-          context.close();
-          resolve();
-        }, DELAY_MS);
-      }, function (e) {
-        console.error('Error decoding audio', e);
-        resolve();
-      });
-    };
-    request.onerror = function () {
-      resolve();
-    };
-    request.send();
-  });
-}
-
 function playAnimalese(text, onComplete) {
   const letters = text.toLowerCase().split('');
   let current = 0;
-  const voiceIdAtStart = currentVoiceId;
 
-  async function playNext() {
-    if (currentVoiceId !== voiceIdAtStart) {
-      console.warn('Voice changed mid-playback; cancelling');
-      if (typeof onComplete === 'function') onComplete();
-      return;
-    }
-
+  function playNext() {
     if (current >= letters.length) {
       if (typeof onComplete === 'function') onComplete();
       return;
     }
 
     const l = letters[current];
+    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
-      const variation = (Math.random() - 0.5) * currentVariation;
-      const pitch = currentPitch + variation;
-      const src = AUDIO_PATH + l + AUDIO_EXT;
-      await playWithPitch(src, pitch);
-    } else {
-      const delay = l === ' ' ? WORD_DELAY_MS : DELAY_MS;
-      await new Promise(resolve => setTimeout(resolve, delay));
+      const audio = new Audio(AUDIO_PATH + l + AUDIO_EXT);
+      audio.play();
+    } else if (l === ' ') {
+      delay = WORD_DELAY_MS;
     }
 
     current++;
-    playNext();
+    setTimeout(playNext, delay);
   }
 
   playNext();
@@ -152,3 +95,4 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
+
