@@ -73,6 +73,24 @@ function setSayPlaying(isPlaying) {
   }
 }
 
+function playWithPitch(src, pitch) {
+  const context = new (window.AudioContext || window.webkitAudioContext)();
+  fetch(src)
+    .then(response => response.arrayBuffer())
+    .then(arrayBuffer => context.decodeAudioData(arrayBuffer))
+    .then(buffer => {
+      const source = context.createBufferSource();
+      source.buffer = buffer;
+
+      const playbackRate = Math.pow(2, (pitch - 1));
+      source.playbackRate.value = playbackRate;
+
+      source.connect(context.destination);
+      source.start();
+    })
+    .catch(error => console.error('Error playing audio with pitch:', error));
+}
+
 function playAnimalese(text, onComplete) {
   const letters = text.toLowerCase().split('');
   let current = 0;
@@ -87,9 +105,10 @@ function playAnimalese(text, onComplete) {
     let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
-      const audio = new Audio(AUDIO_PATH + l + AUDIO_EXT);
-      audio.playbackRate = currentPitch + (Math.random() - 0.5) * currentVariation;
-      audio.play();
+      const variation = (Math.random() - 0.5) * currentVariation;
+      const pitch = currentPitch + variation;
+      const src = AUDIO_PATH + l + AUDIO_EXT;
+      playWithPitch(src, pitch);
     } else if (l === ' ') {
       delay = WORD_DELAY_MS;
     }
