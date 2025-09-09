@@ -43,6 +43,8 @@ dropdownOptions.forEach(option => {
     AUDIO_PATH = `animalese/female/${selectedVoice}/`;
     console.log('Voice changed to:', AUDIO_PATH);
 
+    preloadAudios(AUDIO_PATH); // recargar los audios de la voz seleccionada
+
     sweetDropdown.classList.remove('open');
     dropdownOpen = false;
   });
@@ -62,6 +64,30 @@ function setSayPlaying(isPlaying) {
   }
 }
 
+// --- Precarga de audios ---
+const audioCache = {};
+function preloadAudios(basePath) {
+  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  audioCache[basePath] = {};
+  letters.forEach(l => {
+    const audio = new Audio(basePath + l + AUDIO_EXT);
+    audio.load();
+    audioCache[basePath][l] = audio;
+  });
+}
+
+// Precargar todas las voces desde el inicio
+['voice_1', 'voice_2', 'voice_3', 'voice_4'].forEach(v => {
+  preloadAudios(`animalese/female/${v}/`);
+});
+
+function getAudio(letter, basePath) {
+  if (audioCache[basePath] && audioCache[basePath][letter]) {
+    return audioCache[basePath][letter].cloneNode();
+  }
+  return null;
+}
+
 function playAnimalese(text, onComplete) {
   const letters = text.toLowerCase().split('');
   let current = 0;
@@ -76,8 +102,8 @@ function playAnimalese(text, onComplete) {
     let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
-      const audio = new Audio(AUDIO_PATH + l + AUDIO_EXT);
-      audio.play();
+      const audio = getAudio(l, AUDIO_PATH);
+      if (audio) audio.play();
     } else if (l === ' ') {
       delay = WORD_DELAY_MS;
     }
@@ -95,5 +121,3 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
-
-
