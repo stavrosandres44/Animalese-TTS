@@ -4,7 +4,7 @@ This is a fully client-side TTS (Text-to-Speech) engine that simulates the iconi
 
 All audio samples have been **ripped directly from the game**, preserving the authentic vocal texture and rhythm found in the original Animalese voices. This makes the experience as accurate and faithful to the game as possible.
 
-👉 **Live Demo:** [https://stavrosandres44.github.io/Animalese-TTS/](https://stavrosandres44.github.io/Animalese-TTS/)
+⚠️ **From September 9, 2025 the live demo has been closed due to issues related to voice-synthesizing. The live demo caused issues such as skipping letters and cache problems, forcing you to clear your browser cache to see updates. We encourage you to download the workspace and try it by yourself.**
 
 ✅ **Free, game-accurate, and with unlimited usage** — there are **no character limits** and **no usage restrictions**.
 
@@ -20,7 +20,7 @@ The system is lightweight, fast, and doesn't require any server or API. It runs 
 
 The TTS system includes multiple voice variations, each based on a personality type found in the game. These include:
 
-* **Sweet** – soft, cute, and bubbly
+* **Sweet** – soft, d a little deep
 * **Peppy** – fast-paced, excited, and cheerful
 * **Big Sister** – mature, calm, and slightly deeper
 * **Snooty** – elegant, posh, and sharp
@@ -46,4 +46,3 @@ You can include certain keywords in the text to trigger sound effects. For examp
 * `[angry]` — pauses speech and plays a custom angry sound before continuing
 
 These commands can be typed anywhere in your input and will be detected and executed inline.
-
