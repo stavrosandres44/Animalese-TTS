@@ -73,7 +73,7 @@ function setSayPlaying(isPlaying) {
   }
 }
 
-function playWithPitch(src, pitch) {
+function playWithPitch(src, pitch, callback) {
   const context = new (window.AudioContext || window.webkitAudioContext)();
   fetch(src)
     .then(response => response.arrayBuffer())
@@ -81,14 +81,16 @@ function playWithPitch(src, pitch) {
     .then(buffer => {
       const source = context.createBufferSource();
       source.buffer = buffer;
-
       const playbackRate = Math.pow(2, (pitch - 1));
       source.playbackRate.value = playbackRate;
-
       source.connect(context.destination);
       source.start();
+      source.onended = callback;
     })
-    .catch(error => console.error('Error playing audio with pitch:', error));
+    .catch(error => {
+      console.error('Error playing audio with pitch:', error);
+      callback();
+    });
 }
 
 function playAnimalese(text, onComplete) {
@@ -102,19 +104,22 @@ function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
-    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
       const variation = (Math.random() - 0.5) * currentVariation;
       const pitch = currentPitch + variation;
       const src = AUDIO_PATH + l + AUDIO_EXT;
-      playWithPitch(src, pitch);
-    } else if (l === ' ') {
-      delay = WORD_DELAY_MS;
+      playWithPitch(src, pitch, () => {
+        current++;
+        playNext();
+      });
+    } else {
+      const delay = l === ' ' ? WORD_DELAY_MS : DELAY_MS;
+      setTimeout(() => {
+        current++;
+        playNext();
+      }, delay);
     }
-
-    current++;
-    setTimeout(playNext, delay);
   }
 
   playNext();
@@ -126,3 +131,4 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
+
