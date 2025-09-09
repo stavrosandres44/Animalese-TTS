@@ -1,6 +1,5 @@
 let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
-const DELAY_MS = 125;
 const WORD_DELAY_MS = 55;
 
 const textbox = document.getElementById('textbox');
@@ -11,6 +10,10 @@ const sayBtnPlayIcon = document.getElementById('sayBtnPlayIcon');
 const sweetBtn = document.getElementById('sweetBtn');
 const sweetDropdown = document.getElementById('sweetDropdown');
 const dropdownOptions = document.querySelectorAll('.dropdown-option');
+
+// Obtener referencia a la barra de precarga definida en el CSS/HTML
+const preloadBar = document.getElementById('voicePreloadBar');
+if (preloadBar) preloadBar.style.display = 'flex';
 
 textbox.addEventListener('input', () => {
   sayBtn.disabled = textbox.value.trim().length === 0;
@@ -66,11 +69,20 @@ function setSayPlaying(isPlaying) {
 
 // --- Precarga de audios ---
 const audioCache = {};
+let voicesLoaded = 0;
+const totalVoices = 4 * 26; // 4 voces * 26 letras
+
 function preloadAudios(basePath) {
   const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-  audioCache[basePath] = {};
+  if (!audioCache[basePath]) audioCache[basePath] = {};
   letters.forEach(l => {
     const audio = new Audio(basePath + l + AUDIO_EXT);
+    audio.oncanplaythrough = () => {
+      voicesLoaded++;
+      if (voicesLoaded >= totalVoices && preloadBar) {
+        preloadBar.style.display = 'none';
+      }
+    };
     audio.load();
     audioCache[basePath][l] = audio;
   });
@@ -99,17 +111,30 @@ function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
-    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
       const audio = getAudio(l, AUDIO_PATH);
-      if (audio) audio.play();
+      if (audio) {
+        audio.onended = () => {
+          current++;
+          playNext();
+        };
+        audio.play().catch(() => {
+          current++;
+          playNext();
+        });
+        return;
+      }
     } else if (l === ' ') {
-      delay = WORD_DELAY_MS;
+      setTimeout(() => {
+        current++;
+        playNext();
+      }, WORD_DELAY_MS);
+      return;
     }
 
     current++;
-    setTimeout(playNext, delay);
+    playNext();
   }
 
   playNext();
