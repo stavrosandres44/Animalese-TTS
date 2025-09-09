@@ -2,7 +2,7 @@ let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
 
 // ===== Pausas base (pueden ser sobreescritas por voz) =====
-let LETTER_DELAY_MS = 120;              // Pausa entre letras (0 = máximo flujo)
+let LETTER_DELAY_MS = 0;              // Pausa entre letras (0 = máximo flujo)
 
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
 
@@ -236,3 +236,4 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
+
