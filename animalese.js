@@ -1,5 +1,6 @@
 let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
+const DELAY_MS = 120;
 const WORD_DELAY_MS = 55;
 
 const textbox = document.getElementById('textbox');
@@ -10,10 +11,6 @@ const sayBtnPlayIcon = document.getElementById('sayBtnPlayIcon');
 const sweetBtn = document.getElementById('sweetBtn');
 const sweetDropdown = document.getElementById('sweetDropdown');
 const dropdownOptions = document.querySelectorAll('.dropdown-option');
-
-// Obtener referencia a la barra de precarga definida en el CSS/HTML
-const preloadBar = document.getElementById('voicePreloadBar');
-if (preloadBar) preloadBar.style.display = 'flex';
 
 textbox.addEventListener('input', () => {
   sayBtn.disabled = textbox.value.trim().length === 0;
@@ -46,8 +43,6 @@ dropdownOptions.forEach(option => {
     AUDIO_PATH = `animalese/female/${selectedVoice}/`;
     console.log('Voice changed to:', AUDIO_PATH);
 
-    preloadAudios(AUDIO_PATH); // recargar los audios de la voz seleccionada
-
     sweetDropdown.classList.remove('open');
     dropdownOpen = false;
   });
@@ -67,39 +62,6 @@ function setSayPlaying(isPlaying) {
   }
 }
 
-// --- Precarga de audios ---
-const audioCache = {};
-let voicesLoaded = 0;
-const totalVoices = 4 * 26; // 4 voces * 26 letras
-
-function preloadAudios(basePath) {
-  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-  if (!audioCache[basePath]) audioCache[basePath] = {};
-  letters.forEach(l => {
-    const audio = new Audio(basePath + l + AUDIO_EXT);
-    audio.addEventListener('canplaythrough', () => {
-      voicesLoaded++;
-      if (voicesLoaded >= totalVoices && preloadBar) {
-        preloadBar.style.display = 'none';
-      }
-    }, { once: true });
-    audio.load();
-    audioCache[basePath][l] = audio;
-  });
-}
-
-// Precargar todas las voces desde el inicio
-['voice_1', 'voice_2', 'voice_3', 'voice_4'].forEach(v => {
-  preloadAudios(`animalese/female/${v}/`);
-});
-
-function getAudio(letter, basePath) {
-  if (audioCache[basePath] && audioCache[basePath][letter]) {
-    return audioCache[basePath][letter].cloneNode();
-  }
-  return null;
-}
-
 function playAnimalese(text, onComplete) {
   const letters = text.toLowerCase().split('');
   let current = 0;
@@ -111,40 +73,17 @@ function playAnimalese(text, onComplete) {
     }
 
     const l = letters[current];
+    let delay = DELAY_MS;
 
     if (l >= 'a' && l <= 'z') {
-      const audio = getAudio(l, AUDIO_PATH);
-      if (audio) {
-        console.log(`[PRINT] Reproduciendo letra: ${l}, duración: ${audio.duration}`);
-        audio.onended = () => {
-          console.log(`[PRINT] Terminó letra: ${l}`);
-          current++;
-          playNext();
-        };
-        audio.play().catch((err) => {
-          console.warn(`[PRINT] Error al reproducir letra: ${l}`, err);
-          current++;
-          playNext();
-        });
-        return;
-      }
+      const audio = new Audio(AUDIO_PATH + l + AUDIO_EXT);
+      audio.play();
     } else if (l === ' ') {
-      console.log(`[PRINT] Pausa por espacio`);
-      const start = performance.now();
-      function delayStep(ts) {
-        if (ts - start >= WORD_DELAY_MS) {
-          current++;
-          playNext();
-        } else {
-          requestAnimationFrame(delayStep);
-        }
-      }
-      requestAnimationFrame(delayStep);
-      return;
+      delay = WORD_DELAY_MS;
     }
 
     current++;
-    playNext();
+    setTimeout(playNext, delay);
   }
 
   playNext();
