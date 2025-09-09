@@ -115,18 +115,21 @@ function playAnimalese(text, onComplete) {
     if (l >= 'a' && l <= 'z') {
       const audio = getAudio(l, AUDIO_PATH);
       if (audio) {
+        console.log(`[PRINT] Reproduciendo letra: ${l}, duración: ${audio.duration}`);
         audio.onended = () => {
+          console.log(`[PRINT] Terminó letra: ${l}`);
           current++;
           playNext();
         };
-        audio.play().catch(() => {
+        audio.play().catch((err) => {
+          console.warn(`[PRINT] Error al reproducir letra: ${l}`, err);
           current++;
           playNext();
         });
         return;
       }
     } else if (l === ' ') {
-      // usar requestAnimationFrame para evitar setTimeout con string
+      console.log(`[PRINT] Pausa por espacio`);
       const start = performance.now();
       function delayStep(ts) {
         if (ts - start >= WORD_DELAY_MS) {
