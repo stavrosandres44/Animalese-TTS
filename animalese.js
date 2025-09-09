@@ -2,7 +2,6 @@ let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
 
 // ===== Pausas base (pueden ser sobreescritas por voz) =====
-let WORD_DELAY_MS = 55;               // Pausa entre palabras
 let LETTER_DELAY_MS = 0;              // Pausa entre letras (0 = máximo flujo)
 
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
@@ -65,9 +64,9 @@ async function getCommandBuffer() {
 }
 
 const VOICE_SETTINGS = {
-  default: { letterDelayMs: 0, wordDelayMs: 55 },
-  big_sister: { letterDelayMs: 0, wordDelayMs: 40 },
-  snooty: { letterDelayMs: 0, wordDelayMs: 40 },
+  default: { letterDelayMs: 0 },
+  big_sister: { letterDelayMs: 0 },
+  snooty: { letterDelayMs: 0 },
 };
 
 function normalizeVoiceKey(v) {
@@ -80,7 +79,6 @@ function applyVoiceSettings(voiceKey) {
   const key = normalizeVoiceKey(voiceKey);
   const s = VOICE_SETTINGS[key] || VOICE_SETTINGS.default;
   LETTER_DELAY_MS = s.letterDelayMs;
-  WORD_DELAY_MS = s.wordDelayMs;
 }
 
 if (sweetDropdown && dropdownOptions.length) {
@@ -97,7 +95,7 @@ if (sweetDropdown && dropdownOptions.length) {
       AUDIO_PATH = `animalese/female/${selectedVoice}/`;
       bufferCache.clear();
       applyVoiceSettings(selectedVoice);
-      console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS, WORD_DELAY_MS });
+      console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS });
 
       sweetDropdown.classList.remove('open');
       dropdownOpen = false;
@@ -138,7 +136,7 @@ async function playAnimalese(text, onComplete) {
   const ac = ensureAudioContext();
   const letters = text.toLowerCase();
 
-  if (LETTER_DELAY_MS === undefined || WORD_DELAY_MS === undefined) {
+  if (LETTER_DELAY_MS === undefined) {
     applyVoiceSettings('default');
   }
 
@@ -154,7 +152,6 @@ async function playAnimalese(text, onComplete) {
   let lastSource = null;
 
   const letterGapS = Math.max(0, LETTER_DELAY_MS) / 1000;
-  const wordGapS = Math.max(0, WORD_DELAY_MS) / 1000;
 
   let wordBuffer = [];
 
@@ -191,7 +188,6 @@ async function playAnimalese(text, onComplete) {
       if (wordBuffer.length > 0) {
         t = await playWord(wordBuffer, t);
         wordBuffer = [];
-        t += wordGapS;
       }
       const buf = await getCommandBuffer();
       const src = ac.createBufferSource();
@@ -211,7 +207,6 @@ async function playAnimalese(text, onComplete) {
         t = await playWord(wordBuffer, t);
         wordBuffer = [];
       }
-      t += wordGapS;
       continue;
     }
 
@@ -221,7 +216,6 @@ async function playAnimalese(text, onComplete) {
       if (wordBuffer.length > 0) {
         t = await playWord(wordBuffer, t);
         wordBuffer = [];
-        t += wordGapS;
       }
       t += letterGapS;
     }
