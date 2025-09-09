@@ -12,6 +12,17 @@ const sweetBtn = document.getElementById('sweetBtn');
 const sweetDropdown = document.getElementById('sweetDropdown');
 const dropdownOptions = document.querySelectorAll('.dropdown-option');
 
+let currentPitch = 1;
+let currentVariation = 0;
+
+document.addEventListener('pitchChanged', (e) => {
+  currentPitch = e.detail.pitch;
+});
+
+document.addEventListener('variationChanged', (e) => {
+  currentVariation = e.detail.variation;
+});
+
 textbox.addEventListener('input', () => {
   sayBtn.disabled = textbox.value.trim().length === 0;
 });
@@ -77,6 +88,7 @@ function playAnimalese(text, onComplete) {
 
     if (l >= 'a' && l <= 'z') {
       const audio = new Audio(AUDIO_PATH + l + AUDIO_EXT);
+      audio.playbackRate = currentPitch + (Math.random() - 0.5) * currentVariation;
       audio.play();
     } else if (l === ' ') {
       delay = WORD_DELAY_MS;
@@ -95,4 +107,3 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
-
