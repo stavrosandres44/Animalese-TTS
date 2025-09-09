@@ -77,12 +77,12 @@ function preloadAudios(basePath) {
   if (!audioCache[basePath]) audioCache[basePath] = {};
   letters.forEach(l => {
     const audio = new Audio(basePath + l + AUDIO_EXT);
-    audio.oncanplaythrough = () => {
+    audio.addEventListener('canplaythrough', () => {
       voicesLoaded++;
       if (voicesLoaded >= totalVoices && preloadBar) {
         preloadBar.style.display = 'none';
       }
-    };
+    }, { once: true });
     audio.load();
     audioCache[basePath][l] = audio;
   });
@@ -126,10 +126,17 @@ function playAnimalese(text, onComplete) {
         return;
       }
     } else if (l === ' ') {
-      setTimeout(() => {
-        current++;
-        playNext();
-      }, WORD_DELAY_MS);
+      // usar requestAnimationFrame para evitar setTimeout con string
+      const start = performance.now();
+      function delayStep(ts) {
+        if (ts - start >= WORD_DELAY_MS) {
+          current++;
+          playNext();
+        } else {
+          requestAnimationFrame(delayStep);
+        }
+      }
+      requestAnimationFrame(delayStep);
       return;
     }
 
