@@ -14,7 +14,10 @@ const dropdownOptions = document.querySelectorAll('.dropdown-option');
 
 let currentPitch = 1;
 let currentVariation = 0;
+let currentAudioContext = null;
+let currentVoiceId = 'voice_1';
 
+// Reset AudioContext and voice ID tracking when pitch changes
 document.addEventListener('pitchChanged', (e) => {
   currentPitch = e.detail.pitch;
 });
@@ -52,6 +55,7 @@ dropdownOptions.forEach(option => {
 
     const selectedVoice = this.dataset.voice;
     AUDIO_PATH = `animalese/female/${selectedVoice}/`;
+    currentVoiceId = selectedVoice;
     console.log('Voice changed to:', AUDIO_PATH);
 
     sweetDropdown.classList.remove('open');
@@ -75,6 +79,8 @@ function setSayPlaying(isPlaying) {
 
 function playWithPitch(src, pitch, callback) {
   const context = new (window.AudioContext || window.webkitAudioContext)();
+  currentAudioContext = context;
+
   fetch(src)
     .then(response => response.arrayBuffer())
     .then(arrayBuffer => context.decodeAudioData(arrayBuffer))
@@ -85,10 +91,16 @@ function playWithPitch(src, pitch, callback) {
       source.playbackRate.value = playbackRate;
       source.connect(context.destination);
       source.start();
-      source.onended = callback;
+      source.onended = () => {
+        context.close();
+        callback();
+      };
     })
     .catch(error => {
       console.error('Error playing audio with pitch:', error);
+      try {
+        context.close();
+      } catch (e) {}
       callback();
     });
 }
@@ -96,8 +108,15 @@ function playWithPitch(src, pitch, callback) {
 function playAnimalese(text, onComplete) {
   const letters = text.toLowerCase().split('');
   let current = 0;
+  const voiceIdAtStart = currentVoiceId;
 
   function playNext() {
+    if (currentVoiceId !== voiceIdAtStart) {
+      console.warn('Voice changed mid-playback; cancelling');
+      if (typeof onComplete === 'function') onComplete();
+      return;
+    }
+
     if (current >= letters.length) {
       if (typeof onComplete === 'function') onComplete();
       return;
@@ -131,4 +150,3 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
-
