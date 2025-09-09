@@ -2,7 +2,7 @@ let AUDIO_PATH = 'animalese/female/voice_1/';
 const AUDIO_EXT = '.aac';
 
 // ===== Pausas base (pueden ser sobreescritas por voz) =====
-let LETTER_DELAY_MS = 0;              // Pausa entre letras (0 = máximo flujo)
+let LETTER_DELAY_MS = 120;              // Pausa entre letras (0 = máximo flujo)
 
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
 
@@ -151,8 +151,6 @@ async function playAnimalese(text, onComplete) {
   let t = ac.currentTime + 0.05;
   let lastSource = null;
 
-  const letterGapS = Math.max(0, LETTER_DELAY_MS) / 1000;
-
   let wordBuffer = [];
 
   async function playWord(bufferList, startTime) {
@@ -177,7 +175,8 @@ async function playAnimalese(text, onComplete) {
       gain.connect(ac.destination);
       src.start(currentTime);
 
-      currentTime += buf.duration + letterGapS;
+      // ✅ Aplica el delay solo después de sintetizar cada letra, no se suma antes
+      currentTime = endTime + (LETTER_DELAY_MS / 1000);
       lastSource = src;
     }
     return currentTime;
@@ -217,7 +216,6 @@ async function playAnimalese(text, onComplete) {
         t = await playWord(wordBuffer, t);
         wordBuffer = [];
       }
-      t += letterGapS;
     }
   }
 
