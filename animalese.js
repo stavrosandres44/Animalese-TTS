@@ -4,7 +4,6 @@ const AUDIO_EXT = '.aac';
 // ===== Pausas base (pueden ser sobreescritas por voz) =====
 let WORD_DELAY_MS = 55;               // Pausa entre palabras
 let LETTER_DELAY_MS = 0;              // Pausa entre letras (0 = máximo flujo)
-let OVERLAP_MS = 0;                   // ✅ Solape entre letras para evitar "deletreo"
 
 const COMMAND_SOUND = 'assets/sfx/angry.mp3';
 
@@ -66,9 +65,9 @@ async function getCommandBuffer() {
 }
 
 const VOICE_SETTINGS = {
-  default: { letterDelayMs: 0, overlapMs: 30, wordDelayMs: 55 },
-  big_sister: { letterDelayMs: 0, overlapMs: 60, wordDelayMs: 40 },
-  snooty: { letterDelayMs: 0, overlapMs: 60, wordDelayMs: 40 },
+  default: { letterDelayMs: 0, wordDelayMs: 55 },
+  big_sister: { letterDelayMs: 0, wordDelayMs: 40 },
+  snooty: { letterDelayMs: 0, wordDelayMs: 40 },
 };
 
 function normalizeVoiceKey(v) {
@@ -81,7 +80,6 @@ function applyVoiceSettings(voiceKey) {
   const key = normalizeVoiceKey(voiceKey);
   const s = VOICE_SETTINGS[key] || VOICE_SETTINGS.default;
   LETTER_DELAY_MS = s.letterDelayMs;
-  OVERLAP_MS = s.overlapMs;
   WORD_DELAY_MS = s.wordDelayMs;
 }
 
@@ -99,7 +97,7 @@ if (sweetDropdown && dropdownOptions.length) {
       AUDIO_PATH = `animalese/female/${selectedVoice}/`;
       bufferCache.clear();
       applyVoiceSettings(selectedVoice);
-      console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS, OVERLAP_MS, WORD_DELAY_MS });
+      console.log('Voice changed to:', AUDIO_PATH, 'settings:', { LETTER_DELAY_MS, WORD_DELAY_MS });
 
       sweetDropdown.classList.remove('open');
       dropdownOpen = false;
@@ -140,7 +138,7 @@ async function playAnimalese(text, onComplete) {
   const ac = ensureAudioContext();
   const letters = text.toLowerCase();
 
-  if (LETTER_DELAY_MS === undefined || OVERLAP_MS === undefined || WORD_DELAY_MS === undefined) {
+  if (LETTER_DELAY_MS === undefined || WORD_DELAY_MS === undefined) {
     applyVoiceSettings('default');
   }
 
@@ -155,7 +153,6 @@ async function playAnimalese(text, onComplete) {
   let t = ac.currentTime + 0.05;
   let lastSource = null;
 
-  const overlapS = Math.max(0, OVERLAP_MS) / 1000;
   const letterGapS = Math.max(0, LETTER_DELAY_MS) / 1000;
   const wordGapS = Math.max(0, WORD_DELAY_MS) / 1000;
 
@@ -183,7 +180,7 @@ async function playAnimalese(text, onComplete) {
       gain.connect(ac.destination);
       src.start(currentTime);
 
-      currentTime += Math.max(0, buf.duration - overlapS) + letterGapS;
+      currentTime += buf.duration + letterGapS;
       lastSource = src;
     }
     return currentTime;
@@ -247,5 +244,3 @@ function sayIt() {
   setSayPlaying(true);
   playAnimalese(text, () => setSayPlaying(false));
 }
-
-
